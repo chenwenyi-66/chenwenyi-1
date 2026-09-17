@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>三餐抽签器｜今天吃什么</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        body {
+            background-color: #f7f9fa;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+        .meal-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .meal-card {
+            background: #fff;
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+        }
+        .meal-card h2 {
+            font-size: 18px;
+            margin-bottom:16px;
+            color:#34495e;
+        }
+        .result-box {
+            min-height: 60px;
+            font-size: 22px;
+            text-align: center;
+            padding:12px;
+            background:#f0f7ff;
+            border-radius:8px;
+            margin-bottom:16px;
+            font-weight:500;
+        }
+        button {
+            width:100%;
+            padding:10px;
+            border:none;
+            border-radius:8px;
+            cursor:pointer;
+            font-size:15px;
+            margin-bottom:8px;
+            transition: 0.2s;
+        }
+        .btn-draw {
+            background:#4096ff;
+            color:white;
+        }
+        .btn-draw:hover {
+            background:#297bdd;
+        }
+        .btn-reset {
+            background:#ff7d7d;
+            color:white;
+        }
+        .panel-manage {
+            background:#fff;
+            border-radius:14px;
+            padding:24px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07);
+        }
+        .panel-manage h2{
+            margin-bottom:18px;
+        }
+        .select-box{
+            padding:8px;
+            font-size:16px;
+            margin-bottom:12px;
+        }
+        .input-item{
+            padding:9px;
+            width:60%;
+            font-size:16px;
+            border:1px solid #ddd;
+            border-radius:6px;
+        }
+        .food-list{
+            margin-top:16px;
+            display:flex;
+            flex-wrap:wrap;
+            gap:10px;
+        }
+        .food-tag{
+            padding:6px 10px;
+            background:#ecf3ff;
+            border-radius:20px;
+            font-size:14px;
+            display:flex;
+            align-items:center;
+            gap:6px;
+        }
+        .food-tag.bad{
+            background:#ffe9e9;
+        }
+        .global-reset{
+            background:#222;
+            color:white;
+            margin-top:20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍱 三餐抽签器 - 今天吃啥</h1>
+        <!-- 四个餐次卡片 -->
+        <div class="meal-row">
+            <div class="meal-card" data-type="breakfast">
+                <h2>🌅 早餐</h2>
+                <div class="result-box" id="breakfast-result">等待抽签</div>
+                <button class="btn-draw" onclick="startDraw('breakfast')">开始抽签</button>
+                <button class="btn-reset" onclick="resetSingle('breakfast')">重置本次结果</button>
+            </div>
+            <div class="meal-card" data-type="lunch">
+                <h2>☀️ 午餐</h2>
+                <div class="result-box" id="lunch-result">等待抽签</div>
+                <button class="btn-draw" onclick="startDraw('lunch')">开始抽签</button>
+                <button class="btn-reset" onclick="resetSingle('lunch')">重置本次结果</button>
+            </div>
+            <div class="meal-card" data-type="dinner">
+                <h2>🌙 晚餐</h2>
+                <div class="result-box" id="dinner-result">等待抽签</div>
+                <button class="btn-draw" onclick="startDraw('dinner')">开始抽签</button>
+                <button class="btn-reset" onclick="resetSingle('dinner')">重置本次结果</button>
+            </div>
+            <div class="meal-card" data-type="snack">
+                <h2>🍿 加餐</h2>
+                <div class="result-box" id="snack-result">等待抽签</div>
+                <button class="btn-draw" onclick="startDraw('snack')">开始抽签</button>
+                <button class="btn-reset" onclick="resetSingle('snack')">重置本次结果</button>
+            </div>
+        </div>
+
+        <!-- 菜品管理区域 -->
+        <div class="panel-manage">
+            <h2>📋 菜品库管理</h2>
+            <select class="select-box" id="mealSelect">
+                <option value="breakfast">早餐库</option>
+                <option value="lunch">午餐库</option>
+                <option value="dinner">晚餐库</option>
+                <option value="snack">加餐库</option>
+            </select>
+            <input class="input-item" id="foodInput" placeholder="输入菜品名称">
+            <button style="width:120px;background:#36c769;color:white" onclick="addFood()">添加菜品</button>
+            <label style="margin-left:10px"><input type="checkbox" id="isBad">标记为避雷菜品</label>
+            <div class="food-list" id="foodListBox"></div>
+            <button class="global-reset" onclick="clearAllData()">清空全部本地数据（谨慎）</button>
+        </div>
+    </div>
+
+<script>
+// 默认菜单，杭州本地外卖家常菜
+const defaultFood = {
+    breakfast: [
+        {name:'豆浆油条', bad:false},
+        {name:'小笼包', bad:false},
+        {name:'皮蛋瘦肉粥', bad:false},
+        {name:'葱油拌面', bad:false},
+        {name:'鸡蛋煎饼', bad:false},
+        {name:'包子+牛奶', bad:false},
+        {name:'馄饨', bad:false},
+        {name:'烧麦', bad:false}
+    ],
+    lunch: [
+        {name:'杭帮菜套餐', bad:false},
+        {name:'牛肉面', bad:false},
+        {name:'黄焖鸡米饭', bad:false},
+        {name:'酸菜鱼米饭', bad:false},
+        {name:'盖浇饭', bad:false},
+        {name:'麻辣烫', bad:false},
+        {name:'轻食沙拉', bad:false},
+        {name:'炒粉干', bad:false},
+        {name:'烤肉饭', bad:false},
+        {name:'饺子', bad:false}
+    ],
+    dinner: [
+        {name:'家常小炒', bad:false},
+        {name:'火锅外卖', bad:false},
+        {name:'烤鱼套餐', bad:false},
+        {name:'米线', bad:false},
+        {name:'小龙虾', bad:false},
+        {name:'猪肚鸡', bad:false},
+        {name:'炒饭+汤', bad:false},
+        {name:'寿司简餐', bad:false},
+        {name:'老鸭煲', bad:false}
+    ],
+    snack: [
+        {name:'奶茶', bad:false},
+        {name:'水果拼盘', bad:false},
+        {name:'蛋糕甜品', bad:false},
+        {name:'坚果', bad:false},
+        {name:'烤红薯', bad:false},
+        {name:'糖水', bad:false}
+    ]
+};
+
+// 读取本地存储
+function loadData(){
+    let save = localStorage.getItem("mealData");
+    if(save){
+        return JSON.parse(save);
+    }else{
+        return {
+            foodList: JSON.parse(JSON.stringify(defaultFood)),
+            todayResult: {breakfast:"",lunch:"",dinner:"",snack:""}
+        }
+    }
+}
+function saveData(data){
+    localStorage.setItem("mealData",JSON.stringify(data));
+}
+let appData = loadData();
+
+// 渲染菜品列表
+function renderFoodList(){
+    const type = document.getElementById('mealSelect').value;
+    const box = document.getElementById("foodListBox");
+    box.innerHTML = "";
+    const list = appData.foodList[type];
+    list.forEach((item,idx)=>{
+        const div = document.createElement("div");
+        div.className = "food-tag" + (item.bad?" bad":"");
+        div.innerText = item.name + (item.bad?"【避雷】":"");
+        const delBtn = document.createElement("span");
+        delBtn.innerText="×";
+        delBtn.style.cursor="pointer";
+        delBtn.onclick=()=>{
+            appData.foodList[type].splice(idx,1);
+            saveData(appData);
+            renderFoodList();
+        }
+        div.appendChild(delBtn);
+        box.appendChild(div);
+    })
+}
+
+// 添加菜品
+function addFood(){
+    const type = document.getElementById('mealSelect').value;
+    const name = document.getElementById("foodInput").value.trim();
+    const isBad = document.getElementById("isBad").checked;
+    if(!name) return alert("请输入菜品名称");
+    appData.foodList[type].push({name, bad:isBad});
+    saveData(appData);
+    document.getElementById("foodInput").value="";
+    document.getElementById("isBad").checked=false;
+    renderFoodList();
+}
+
+// 抽签动画
+let drawTimer = null;
+function startDraw(mealType){
+    const resultDom = document.getElementById(`${mealType}-result`);
+    const allFood = appData.foodList[mealType].filter(f=>!f.bad);
+    if(allFood.length===0) return alert("没有可选菜品，请先添加！");
+    let count = 0;
+    const maxTime = 1200;
+    const interval = 80;
+    drawTimer = setInterval(()=>{
+        const rand = allFood[Math.floor(Math.random()*allFood.length)];
+        resultDom.innerText = rand.name;
+        count += interval;
+        if(count >= maxTime){
+            clearInterval(drawTimer);
+            const final = allFood[Math.floor(Math.random()*allFood.length)];
+            resultDom.innerText = final.name;
+            appData.todayResult[mealType] = final.name;
+            saveData(appData);
+        }
+    },interval)
+}
+
+// 重置单餐结果
+function resetSingle(type){
+    appData.todayResult[type] = "";
+    saveData(appData);
+    document.getElementById(`${type}-result`).innerText = "等待抽签";
+}
+
+// 清空全部
+function clearAllData(){
+    if(confirm("确定清空所有菜品和记录？无法恢复！")){
+        localStorage.removeItem("mealData");
+        appData = loadData();
+        refreshAllResult();
+        renderFoodList();
+    }
+}
+
+// 刷新结果显示
+function refreshAllResult(){
+    const res = appData.todayResult;
+    document.getElementById("breakfast-result").innerText = res.breakfast || "等待抽签";
+    document.getElementById("lunch-result").innerText = res.lunch || "等待抽签";
+    document.getElementById("dinner-result").innerText = res.dinner || "等待抽签";
+    document.getElementById("snack-result").innerText = res.snack || "等待抽签";
+}
+
+// 切换餐次时刷新菜品列表
+document.getElementById("mealSelect").onchange = renderFoodList;
+
+// 页面初始化
+refreshAllResult();
+renderFoodList();
+</script>
+</body>
+</html>
